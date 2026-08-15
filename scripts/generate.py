@@ -37,9 +37,9 @@ def generate_mavlink(dialect: Path, mavlink_output_dir: Path) -> None:
     if not mavgen.mavgen(options, [dialect]):
         raise RuntimeError("MAVLink code generation failed")
 
-def create_package(context: dict[str, object], template_dir: Path, mavlink_output_dir: Path , output_dir: Path, archive_filename: str) -> None:
+def create_platformio_package(context: dict[str, object], template_dir: Path, mavlink_output_dir: Path , output_dir: Path, archive_filename: str) -> None:
 
-    generated_dir = output_dir / "generated"
+    generated_dir = output_dir / "generated" / "platformio"
 
     environment = Environment(
         loader=FileSystemLoader(template_dir),
@@ -69,18 +69,56 @@ def create_package(context: dict[str, object], template_dir: Path, mavlink_outpu
         mavlink_output_dir,
         generated_dir / "include" / "mavlink",
     )
-    archive_path = output_dir / f"{archive_filename}.zip"
+    archive_path = output_dir / f"{archive_filename}-platformio.zip"
     shutil.make_archive(
         base_name=archive_path.with_suffix(""),
         format="zip",
         root_dir=generated_dir,
     )
 
+def create_cmake_package(context: dict[str, object], template_dir: Path, mavlink_output_dir: Path , output_dir: Path, archive_filename: str) -> None:
+
+    generated_dir = output_dir / "generated" / "cmake"
+
+    environment = Environment(
+        loader=FileSystemLoader(template_dir),
+        keep_trailing_newline=True,
+    )
+
+    if not generated_dir.exists():
+        generated_dir.mkdir(parents=True)
+
+    for source in template_dir.rglob("*"):
+        if not source.is_file():
+            continue
+
+        print(f"Generating: {source.relative_to(template_dir)}")
+        relative_path = source.relative_to(template_dir)
+        template = environment.get_template(relative_path.as_posix())
+
+        destination = generated_dir / relative_path.with_suffix("")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+
+        destination.write_text(
+            template.render(**context),
+            encoding="utf-8",
+        )
+
+    shutil.copytree(
+        mavlink_output_dir,
+        generated_dir / "include" / "mavlink",
+    )
+    archive_path = output_dir / f"{archive_filename}-cmake.zip"
+    shutil.make_archive(
+        base_name=archive_path.with_suffix(""),
+        format="zip",
+        root_dir=generated_dir,
+    )
 
 def main() -> None:
   
     ROOT = Path(__file__).resolve().parent.parent
-    ARCHIVE_FILENAME = "mavlink-cpp"
+    ARCHIVE_FILENAME = "mavlink"
 
     TEMPLATE_DIR = ROOT / "templates"
     OUTPUT_DIR = ROOT / "dist"
@@ -100,7 +138,9 @@ def main() -> None:
 
     clean_generated_dir(OUTPUT_DIR)
     generate_mavlink(dialect, MAVLINK_OUTPUT_DIR)
-    create_package(context, TEMPLATE_DIR, MAVLINK_OUTPUT_DIR, OUTPUT_DIR, ARCHIVE_FILENAME)
+
+    create_platformio_package(context, TEMPLATE_DIR / "platformio", MAVLINK_OUTPUT_DIR, OUTPUT_DIR, ARCHIVE_FILENAME)
+    create_cmake_package(context, TEMPLATE_DIR / "cmake", MAVLINK_OUTPUT_DIR, OUTPUT_DIR, ARCHIVE_FILENAME)
 
 
 if __name__ == "__main__":
