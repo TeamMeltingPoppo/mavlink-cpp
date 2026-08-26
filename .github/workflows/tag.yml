@@ -52,12 +52,15 @@ jobs:
           echo "version=${NEXT_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Create tag
+        id: tag
         if: steps.dialect.outputs.changed == 'true'
         run: |
           TAG="${{ steps.version.outputs.version }}"
 
           git tag "$TAG"
           git push origin "$TAG"
+
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Install uv
         if: steps.dialect.outputs.changed == 'true'
@@ -78,7 +81,7 @@ jobs:
         if: steps.dialect.outputs.changed == 'true'
         uses: softprops/action-gh-release@v3
         with:
-          generate_release_notes: true
+          tag_name: ${{ steps.tag.outputs.tag }}
           files: |
             dist/mavlink-platformio.zip
             dist/mavlink-cmake.zip
