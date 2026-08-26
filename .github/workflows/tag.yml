@@ -22,7 +22,7 @@ jobs:
       - name: Check dialect update
         id: dialect
         run: |
-          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1)
+          LATEST_TAG=$(git tag --list --sort=-version:refname | head -n 1)
 
           if [ -z "$LATEST_TAG" ]; then
             echo "No previous release tag found."
@@ -30,7 +30,7 @@ jobs:
             exit 0
           fi
 
-          if git diff --quiet "$LATEST_TAG" HEAD -- dialect; then
+          if git diff --quiet "$LATEST_TAG" HEAD -- mavlink-dialect; then
             echo "Dialect was not updated."
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
@@ -43,7 +43,7 @@ jobs:
         id: version
         if: steps.dialect.outputs.changed == 'true'
         run: |
-          LATEST_TAG=$(git tag --list 'v*' --sort=-version:refname | head -n 1)
+          LATEST_TAG=$(git tag --list --sort=-version:refname | head -n 1)
           VERSION="${LATEST_TAG#v}"
 
           IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
@@ -54,7 +54,7 @@ jobs:
       - name: Create tag
         if: steps.dialect.outputs.changed == 'true'
         run: |
-          TAG="v${{ steps.version.outputs.version }}"
+          TAG="${{ steps.version.outputs.version }}"
 
           git tag "$TAG"
           git push origin "$TAG"
